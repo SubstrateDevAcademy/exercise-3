@@ -11,6 +11,8 @@
     - Kitty owner can choose two kitties with opposite gender to breed a new kitten
     - New kitten should inherits the DNA from parents
 
+Solution: https://github.com/SubstrateDevAcademy/exercise-3/commit/b29e5758cd941277c810bd9ee626ef694e237383
+
 ---
 
 NOTES:
