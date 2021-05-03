@@ -3,7 +3,7 @@
 use codec::{Encode, Decode};
 use frame_support::{
 	decl_module, decl_storage, decl_event, decl_error, StorageValue, StorageDoubleMap,
-	traits::Randomness, RuntimeDebug,
+	traits::Randomness, RuntimeDebug, dispatch::DispatchResult,
 };
 use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
@@ -50,25 +50,27 @@ decl_module! {
 		pub fn create(origin) {
 			let sender = ensure_signed(origin)?;
 
-			// TODO: ensure kitty id does not overflow
-			// return Err(Error::<T>::KittiesIdOverflow.into());
+			NextKittyId::try_mutate(|next_id| -> DispatchResult {
+				let current_id = *next_id;
+				*next_id = next_id.checked_add(1).ok_or(Error::<T>::KittiesIdOverflow)?;
 
-			// Generate a random 128bit value
-			let payload = (
-				<pallet_randomness_collective_flip::Module<T> as Randomness<T::Hash>>::random_seed(),
-				&sender,
-				<frame_system::Module<T>>::extrinsic_index(),
-			);
-			let dna = payload.using_encoded(blake2_128);
+				// Generate a random 128bit value
+				let payload = (
+					<pallet_randomness_collective_flip::Module<T> as Randomness<T::Hash>>::random_seed(),
+					&sender,
+					<frame_system::Module<T>>::extrinsic_index(),
+				);
+				let dna = payload.using_encoded(blake2_128);
 
-			// Create and store kitty
-			let kitty = Kitty(dna);
-			let kitty_id = Self::next_kitty_id();
-			Kitties::<T>::insert(&sender, kitty_id, kitty.clone());
-			NextKittyId::put(kitty_id + 1);
+				// Create and store kitty
+				let kitty = Kitty(dna);
+				Kitties::<T>::insert(&sender, current_id, &kitty);
 
-			// Emit event
-			Self::deposit_event(RawEvent::KittyCreated(sender, kitty_id, kitty))
+				// Emit event
+				Self::deposit_event(RawEvent::KittyCreated(sender, current_id, kitty));
+
+				Ok(())
+			})?;
 		}
 	}
 }
